@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/llm/openai-compatible.ts","./src/llm/provider.ts","./src/llm/stream-parser.ts","./src/utils/constants.ts","./src/utils/storage.ts"],"version":"5.9.3"}
