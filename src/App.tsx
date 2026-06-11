@@ -4,6 +4,7 @@ import { AppProvider } from '@/store/appStore';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Home } from '@/routes/Home';
 import { Chat } from '@/routes/Chat';
+import { Settings } from '@/routes/Settings';
 
 const theme = createTheme({
   palette: {
@@ -22,20 +23,11 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { index: true, element: <Home /> },
-      { path: 'settings', element: <SettingsPlaceholder /> },
+      { path: 'settings', element: <Settings /> },
     ],
   },
   { path: '/chat', element: <Chat /> },
 ]);
-
-function SettingsPlaceholder() {
-  return (
-    <div style={{ padding: 40 }}>
-      <h2>设置</h2>
-      <p>API Key 配置将在 Phase 4 中实现。</p>
-    </div>
-  );
-}
 
 export default function App() {
   return (
