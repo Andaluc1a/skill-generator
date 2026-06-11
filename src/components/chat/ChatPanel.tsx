@@ -3,9 +3,10 @@
 // ================================================================
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Box, Typography, IconButton } from '@mui/material';
+import { Box, Typography, IconButton, Button } from '@mui/material';
 import TuneIcon from '@mui/icons-material/Tune';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import DeleteIcon from '@mui/icons-material/DeleteSweep';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/store/appStore';
 import { streamChat, tweakPersona } from '@/utils/personaTweaker';
@@ -15,6 +16,23 @@ import { ChatMessage as ChatBubble } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { PersonaCard } from './PersonaCard';
 import { TweakDialog } from './TweakDialog';
+
+const CHAT_PREFIX = 'sg_chat_';
+
+function loadMessages(charId: string): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(CHAT_PREFIX + charId);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveMessages(charId: string, msgs: ChatMessage[]) {
+  try { localStorage.setItem(CHAT_PREFIX + charId, JSON.stringify(msgs)); } catch { /* ignore */ }
+}
+
+function clearMessages(charId: string) {
+  localStorage.removeItem(CHAT_PREFIX + charId);
+}
 
 export function ChatPanel() {
   const { state, dispatch } = useApp();
@@ -32,10 +50,16 @@ export function ChatPanel() {
   useEffect(() => { promptRef.current = char?.systemPrompt || ''; }, [char?.systemPrompt]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, streamingText]);
 
-  // 首次加载：发送开场白
+  // 首次加载：从 localStorage 恢复聊天记录，否则发开场白
   useEffect(() => {
-    if (char && messages.length === 0 && char.firstMessage) {
-      setMessages([{ role: 'assistant', content: char.firstMessage }]);
+    if (!char) return;
+    const saved = loadMessages(char.id);
+    if (saved.length > 0) {
+      setMessages(saved);
+    } else if (char.firstMessage) {
+      const firstMsg: ChatMessage = { role: 'assistant', content: char.firstMessage };
+      setMessages([firstMsg]);
+      saveMessages(char.id, [firstMsg]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [char?.id]);
@@ -74,13 +98,16 @@ export function ChatPanel() {
     try {
       const reply = await streamChat([sysMsg, ...newMsgs], config, ctrl.signal);
       if (!ctrl.signal.aborted) {
-        setMessages([...newMsgs, { role: 'assistant', content: reply }]);
+        const finalMsgs: ChatMessage[] = [...newMsgs, { role: 'assistant' as const, content: reply }];
+        setMessages(finalMsgs);
+        if (char) saveMessages(char.id, finalMsgs);
         setStreamingText('');
       }
     } catch (err) {
       if (!ctrl.signal.aborted) {
-        const errMsg = err instanceof Error ? err.message : '对话失败';
-        setMessages([...newMsgs, { role: 'assistant', content: `出错了：${errMsg}。请检查 API Key 配置或网络连接。` }]);
+        const finalMsgs: ChatMessage[] = [...newMsgs, { role: 'assistant' as const, content: `出错了：${err instanceof Error ? err.message : '对话失败'}。请检查 API Key 配置或网络连接。` }];
+        setMessages(finalMsgs);
+        if (char) saveMessages(char.id, finalMsgs);
       }
     } finally {
       setIsStreaming(false);
@@ -120,6 +147,9 @@ export function ChatPanel() {
         <IconButton size="small" onClick={() => navigate('/')}><ArrowBackIcon /></IconButton>
         <PersonaCard character={char} />
         <Box sx={{ flexGrow: 1 }} />
+        <IconButton size="small" onClick={() => { clearMessages(char.id); setMessages([]); }} title="清空聊天记录">
+          <DeleteIcon fontSize="small" />
+        </IconButton>
         <IconButton size="small" onClick={() => setTweakOpen(true)} title="微调角色">
           <TuneIcon fontSize="small" />
         </IconButton>
