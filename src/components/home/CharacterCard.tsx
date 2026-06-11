@@ -20,13 +20,17 @@ export function CharacterCard({ character, onClick, compact }: Props) {
         height: compact ? 140 : 180,
       }}
     >
-      <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 3 }}>
-        <Box sx={{ fontSize: compact ? 36 : 48, mb: 1 }}>{character.avatar}</Box>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+      <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2.5, px: 1.5 }}>
+        <Box sx={{ fontSize: compact ? 32 : 44, mb: 0.8 }}>{character.avatar}</Box>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.3, textAlign: 'center', fontSize: 13 }}>
           {character.name}
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', px: 1 }}>
-          {character.description.slice(0, 30)}{character.description.length > 30 ? '…' : ''}
+        <Typography variant="caption" color="text.secondary" sx={{
+          textAlign: 'center', px: 0.5, overflow: 'hidden', textOverflow: 'ellipsis',
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          lineHeight: 1.3, minHeight: compact ? '2.6em' : 'auto',
+        }}>
+          {character.description}
         </Typography>
         {!compact && character.tags.length > 0 && (
           <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
