@@ -1,4 +1,8 @@
-import { ThemeProvider, createTheme, CssBaseline, Box, Typography } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { AppProvider } from '@/store/appStore';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Home } from '@/routes/Home';
 
 const theme = createTheme({
   palette: {
@@ -11,20 +15,33 @@ const theme = createTheme({
   },
 });
 
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <AppLayout />,
+    children: [
+      { index: true, element: <Home /> },
+      { path: 'settings', element: <SettingsPlaceholder /> },
+    ],
+  },
+]);
+
+function SettingsPlaceholder() {
+  return (
+    <div style={{ padding: 40 }}>
+      <h2>设置</h2>
+      <p>API Key 配置将在 Phase 4 中实现。</p>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#F8FAFC' }}>
-        <Box sx={{ textAlign: 'center' }}>
-          <Typography variant="h3" sx={{ fontWeight: 800, color: 'primary.main', mb: 1 }}>
-            AI 角色工坊
-          </Typography>
-          <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 400 }}>
-            Phase 1 — 骨架就绪
-          </Typography>
-        </Box>
-      </Box>
+      <AppProvider>
+        <RouterProvider router={router} />
+      </AppProvider>
     </ThemeProvider>
   );
 }
