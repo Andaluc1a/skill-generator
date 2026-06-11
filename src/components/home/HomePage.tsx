@@ -7,8 +7,8 @@ import AddIcon from '@mui/icons-material/Add';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import { TEMPLATES, type Character } from '@/types/character';
-import { useApp } from '@/store/appStore';
+import { TEMPLATES, type Character, createEmptyCharacter } from '@/types/character';
+import { useApp, generateId } from '@/store/appStore';
 import { CharacterCard } from './CharacterCard';
 import { CreateWizard } from './CreateWizard';
 import { downloadCharacterJSON, downloadSkillMD } from '@/utils/skillExport';
@@ -26,7 +26,20 @@ export function HomePage() {
   };
 
   const handleSelectTemplate = (tplIdx: number) => {
-    setWizardOpen(true);
+    const tpl = TEMPLATES[tplIdx];
+    if (!tpl) return;
+    // 用模板数据直接生成角色 → 立刻进入聊天
+    const prompt = buildPromptFromTemplate(tpl);
+    const char: Character = {
+      ...tpl,
+      id: generateId(),
+      systemPrompt: prompt,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      firstMessage: tpl.firstMessage || `你好，我是${tpl.name}。`,
+    };
+    dispatch({ type: 'ADD_CHARACTER', payload: char });
+    navigate('/chat');
   };
 
   const handleOpenMenu = (e: React.MouseEvent<HTMLElement>, char: Character) => {
@@ -117,4 +130,17 @@ export function HomePage() {
       </Menu>
     </Box>
   );
+}
+
+function buildPromptFromTemplate(tpl: Character): string {
+  const parts = [
+    `你是${tpl.name}。${tpl.description}。永远以${tpl.name}的身份说话，不跳出角色。`,
+  ];
+  if (tpl.tone.length) parts.push(`说话语气：${tpl.tone.join('、')}。`);
+  if (tpl.catchphrases.length) parts.push(`常用口头禅：${tpl.catchphrases.join('、')}。`);
+  if (tpl.style.length) parts.push(`说话特点：${tpl.style.join('、')}。`);
+  if (tpl.topics.length) parts.push(`喜欢的聊天话题：${tpl.topics.join('、')}。`);
+  if (tpl.avoid) parts.push(`绝对不做或不说：${tpl.avoid}。`);
+  parts.push('你就是这个角色。用角色的语气回答，不要加任何解释。');
+  return parts.join('\n\n');
 }

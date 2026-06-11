@@ -150,9 +150,15 @@ export function ChatPanel() {
         <IconButton size="small" onClick={() => { clearMessages(char.id); setMessages([]); }} title="清空聊天记录">
           <DeleteIcon fontSize="small" />
         </IconButton>
-        <IconButton size="small" onClick={() => setTweakOpen(true)} title="微调角色">
-          <TuneIcon fontSize="small" />
-        </IconButton>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<TuneIcon />}
+          onClick={() => setTweakOpen(true)}
+          sx={{ ml: 0.5, borderRadius: 2, textTransform: 'none', fontSize: 12, py: 0.5 }}
+        >
+          微调角色
+        </Button>
       </Box>
 
       {/* 消息区 */}
