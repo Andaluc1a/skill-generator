@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AppProvider } from '@/store/appStore';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Home } from '@/routes/Home';
+import { Chat } from '@/routes/Chat';
 
 const theme = createTheme({
   palette: {
@@ -24,6 +25,7 @@ const router = createBrowserRouter([
       { path: 'settings', element: <SettingsPlaceholder /> },
     ],
   },
+  { path: '/chat', element: <Chat /> },
 ]);
 
 function SettingsPlaceholder() {

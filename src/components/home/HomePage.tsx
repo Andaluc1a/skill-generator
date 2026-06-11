@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Box, Typography, Button, Grid } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import { TEMPLATES } from '@/types/character';
 import { useApp } from '@/store/appStore';
@@ -10,10 +11,12 @@ import { CreateWizard } from './CreateWizard';
 
 export function HomePage() {
   const { state, dispatch } = useApp();
+  const navigate = useNavigate();
   const [wizardOpen, setWizardOpen] = useState(false);
 
   const handleSelectChar = (id: string) => {
     dispatch({ type: 'SET_ACTIVE', payload: id });
+    navigate('/chat');
   };
 
   const handleSelectTemplate = (tplIdx: number) => {

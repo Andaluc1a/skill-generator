@@ -2,7 +2,7 @@
 // AppLayout — WorkBuddy 风格布局
 // ================================================================
 
-import { Box, useTheme } from '@mui/material';
+import { Box } from '@mui/material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import HomeIcon from '@mui/icons-material/Home';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -14,7 +14,6 @@ const NAV_ITEMS = [
 ];
 
 export function AppLayout() {
-  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
