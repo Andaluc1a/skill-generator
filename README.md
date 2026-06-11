@@ -1,6 +1,6 @@
 # AI 角色工坊
 
-> 用大白话创造你的专属 AI 角色，双击 HTML 就能用，不需要写代码。
+> 用大白话创造你的专属 AI 角色，双击启动就能用，不需要写代码。
 
 ## 是什么
 
@@ -10,13 +10,17 @@
 
 ## 怎么用
 
-### 方式一：在线打开（推荐）
-1. 下载 `dist` 文件夹
-2. 解压
-3. 双击 `index.html`
-4. 浏览器里打开即用
+### 最简单：双击启动（Windows）
 
-### 方式二：开发者模式
+1. 下载整个 `dist` 文件夹
+2. 打开 `dist` 文件夹
+3. 双击 `启动.bat`
+4. 浏览器自动打开 → 开始使用
+
+> 需要 Python（大多数人都有）或 Node.js。没有的话 .bat 会提示你安装。
+
+### 或者开发者自己跑
+
 ```bash
 git clone git@github.com:Andaluc1a/skill-generator.git
 cd skill-generator
@@ -37,15 +41,14 @@ npm run dev
 
 一个 LLM API Key（推荐 DeepSeek，新用户送免费额度）：
 - [DeepSeek 注册](https://platform.deepseek.com)
-- [Qwen 注册](https://dashscope.aliyun.com)
 
-配置：点左下角 ⚙️ 设置 → 选 Provider → 填 Key → 验证 → 保存。
+配置：点左下角 ⚙️ 设置 → 选 Provider → 填 Key → 验证 → 保存 → 回首页创建角色。
 
 ## 技术栈
 
 Vite + React 18 + TypeScript + MUI v6 + Tailwind CSS
 
-纯静态 SPA，`base: './'` 相对路径，无后端依赖。
+纯静态 SPA，`base: './'` + `createHashRouter`，双击 `启动.bat` 即用。
 
 ## License
 
