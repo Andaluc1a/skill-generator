@@ -183,47 +183,60 @@ export function ChatPanel() {
   const handleCorrectSubmit = async () => {
     if (!correctText.trim() || !char) return;
     setCorrectOpen(false);
+    setIsStreaming(true);
+    streamingRef.current = true;
 
-    // 保存纠正对：上一句用户消息 → 纠正后的回复
     const userMsg = messages[correctIndex - 1];
     const aiMsg = messages[correctIndex];
-    if (!userMsg || !aiMsg || userMsg.role !== 'user') return;
+    if (!userMsg || !aiMsg || userMsg.role !== 'user') {
+      setIsStreaming(false);
+      streamingRef.current = false;
+      return;
+    }
 
-    const newSample = `对方说：「${userMsg.content}」\n${char.name}说：「${correctText.trim()}」`;
-
-    // 追加到角色样本
-    const updatedSamples = (char.samples ? char.samples + '\n' : '') + newSample;
-    dispatch({ type: 'UPDATE_CHARACTER', payload: { ...char, samples: updatedSamples, updatedAt: Date.now() } });
-
-    // 重新生成：替换原来的 AI 回复，加纠正上下文
     const config = getConfig();
     if (!config) return;
 
-    setIsStreaming(true);
-    streamingRef.current = true;
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
-    const correctedSys: ChatMessage = {
+    // Step 1: 用 LLM 将用户的描述型语句翻译成角色真正会说的话
+    const translateMeta: ChatMessage = {
       role: 'system',
-      content: promptRef.current + '\n\n【重要提醒】上一句回复不够像。ta 真正会说的版本是：\n' + newSample + '\n请用这种语气重新回复接下来的消息。',
+      content: promptRef.current,
+    };
+    const translateUser: ChatMessage = {
+      role: 'user',
+      content: `刚才有人对我说「${(userMsg.content as string).slice(0, 100)}」，我回了一句，但对方说我回得不像。\n\n对方觉得我应该这样说：${correctText.trim()}\n\n请根据这个描述，用${char.name}的语气重新说一句话。只输出那句话，不要解释。`,
     };
 
+    let correctedReply = '';
     try {
-      const msgsBefore = messages.slice(0, correctIndex);
-      const reply = await streamChat([correctedSys, ...msgsBefore], config, ctrl.signal);
-      if (!ctrl.signal.aborted) {
-        const finalMsgs = [...msgsBefore, { role: 'assistant' as const, content: reply }];
-        setMessages(finalMsgs);
-        if (char) saveMessages(char.id, finalMsgs);
-      }
+      correctedReply = await streamChat([translateMeta, translateUser], config, ctrl.signal);
     } catch {
-      // ignore
-    } finally {
+      correctedReply = correctText.trim();
+    }
+
+    if (!correctedReply.trim() || ctrl.signal.aborted) {
       setIsStreaming(false);
       streamingRef.current = false;
-      abortRef.current = null;
+      return;
     }
+
+    // Step 2: 保存纠正对
+    const newSample = `对方说：「${userMsg.content}」\n${char.name}说：「${correctedReply.trim()}」`;
+    const updatedSamples = (char.samples ? char.samples + '\n' : '') + newSample;
+    dispatch({ type: 'UPDATE_CHARACTER', payload: { ...char, samples: updatedSamples, updatedAt: Date.now() } });
+
+    // Step 3: 用纠正后的回复替换原来的 AI 回复
+    const msgsBefore = messages.slice(0, correctIndex);
+    const finalMsgs = [...msgsBefore, { role: 'assistant' as const, content: correctedReply.trim() }];
+    setMessages(finalMsgs);
+    if (char) saveMessages(char.id, finalMsgs);
+
+    setIsStreaming(false);
+    streamingRef.current = false;
+    abortRef.current = null;
   };
 
   const handleExportChat = () => {
@@ -295,17 +308,25 @@ export function ChatPanel() {
 
       {/* 纠正对话弹窗 */}
       <Dialog open={correctOpen} onClose={() => setCorrectOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>ta 真正会怎么说？</DialogTitle>
+        <DialogTitle>ta 应该怎么回？</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            刚才的回复不像 ta。写一句 ta 在这种情况下真正会说的话。
+            刚才的回复不像 ta。用大白话描述 ta 会怎么回，不用写出精确台词。
+          </Typography>
+          <Box component="ul" sx={{ pl: 2, mt: 0, mb: 2, color: 'text.secondary', fontSize: 12 }}>
+            <li>可以写："他会开玩笑地怼我，不会这么温柔"</li>
+            <li>也可以写："语气要随意点，带点东北口音，别肉麻"</li>
+            <li>或者直接写 ta 会说的话："得了吧你，这点小事还要我哄？"</li>
+          </Box>
+          <Typography variant="caption" color="text.disabled" sx={{ mb: 1, display: 'block' }}>
+            AI 会自动理解你的描述并生成符合角色语气的正确回复
           </Typography>
           <TextField
             autoFocus multiline minRows={2} maxRows={4} fullWidth
             value={correctText}
             onChange={e => setCorrectText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCorrectSubmit(); } }}
-            placeholder="写 ta 真正会说的话..."
+            placeholder="用大白话描述 ta 应该怎么回，或直接写 ta 会说的话..."
             size="small"
           />
         </DialogContent>
