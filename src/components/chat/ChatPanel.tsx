@@ -3,7 +3,7 @@
 // ================================================================
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Box, Typography, IconButton, Button } from '@mui/material';
+import { Box, Typography, IconButton, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
 import TuneIcon from '@mui/icons-material/Tune';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/DeleteSweep';
@@ -46,6 +46,9 @@ export function ChatPanel() {
   const [streamingText, setStreamingText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
+  const [correctOpen, setCorrectOpen] = useState(false);
+  const [correctIndex, setCorrectIndex] = useState(-1);
+  const [correctText, setCorrectText] = useState('');
   const abortRef = useRef<AbortController | null>(null);
   const streamingRef = useRef(false);
   const promptRef = useRef(char?.systemPrompt || '');
@@ -171,6 +174,58 @@ export function ChatPanel() {
     }
   };
 
+  const handleCorrectClick = (idx: number) => {
+    setCorrectIndex(idx);
+    setCorrectText('');
+    setCorrectOpen(true);
+  };
+
+  const handleCorrectSubmit = async () => {
+    if (!correctText.trim() || !char) return;
+    setCorrectOpen(false);
+
+    // 保存纠正对：上一句用户消息 → 纠正后的回复
+    const userMsg = messages[correctIndex - 1];
+    const aiMsg = messages[correctIndex];
+    if (!userMsg || !aiMsg || userMsg.role !== 'user') return;
+
+    const newSample = `对方说：「${userMsg.content}」\n${char.name}说：「${correctText.trim()}」`;
+
+    // 追加到角色样本
+    const updatedSamples = (char.samples ? char.samples + '\n' : '') + newSample;
+    dispatch({ type: 'UPDATE_CHARACTER', payload: { ...char, samples: updatedSamples, updatedAt: Date.now() } });
+
+    // 重新生成：替换原来的 AI 回复，加纠正上下文
+    const config = getConfig();
+    if (!config) return;
+
+    setIsStreaming(true);
+    streamingRef.current = true;
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    const correctedSys: ChatMessage = {
+      role: 'system',
+      content: promptRef.current + '\n\n【重要提醒】上一句回复不够像。ta 真正会说的版本是：\n' + newSample + '\n请用这种语气重新回复接下来的消息。',
+    };
+
+    try {
+      const msgsBefore = messages.slice(0, correctIndex);
+      const reply = await streamChat([correctedSys, ...msgsBefore], config, ctrl.signal);
+      if (!ctrl.signal.aborted) {
+        const finalMsgs = [...msgsBefore, { role: 'assistant' as const, content: reply }];
+        setMessages(finalMsgs);
+        if (char) saveMessages(char.id, finalMsgs);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsStreaming(false);
+      streamingRef.current = false;
+      abortRef.current = null;
+    }
+  };
+
   const handleExportChat = () => {
     if (!char || messages.length === 0) return;
     const text = messages.map(m => {
@@ -221,7 +276,10 @@ export function ChatPanel() {
       {/* 消息区 */}
       <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
         {messages.map((msg, i) => (
-          <ChatBubble key={i} message={msg} avatar={char.avatar} name={msg.role === 'assistant' ? char.name : undefined} />
+          <ChatBubble key={i} message={msg} avatar={char.avatar}
+            name={msg.role === 'assistant' ? char.name : undefined}
+            messageIndex={i}
+            onCorrect={msg.role === 'assistant' ? handleCorrectClick : undefined} />
         ))}
         {isStreaming && streamingText && (
           <ChatBubble message={{ role: 'assistant', content: streamingText }} avatar={char.avatar} name={char.name} isStreaming />
@@ -234,6 +292,30 @@ export function ChatPanel() {
 
       {/* 微调弹窗 */}
       <TweakDialog open={tweakOpen} onClose={() => setTweakOpen(false)} character={char} onApply={handleTweak} onDirectEdit={handleDirectEdit} />
+
+      {/* 纠正对话弹窗 */}
+      <Dialog open={correctOpen} onClose={() => setCorrectOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>ta 真正会怎么说？</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            刚才的回复不像 ta。写一句 ta 在这种情况下真正会说的话。
+          </Typography>
+          <TextField
+            autoFocus multiline minRows={2} maxRows={4} fullWidth
+            value={correctText}
+            onChange={e => setCorrectText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCorrectSubmit(); } }}
+            placeholder="写 ta 真正会说的话..."
+            size="small"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCorrectOpen(false)}>取消</Button>
+          <Button onClick={handleCorrectSubmit} variant="contained" disabled={!correctText.trim()}>
+            重新生成
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
