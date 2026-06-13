@@ -87,7 +87,7 @@ export function ImportDialog({ open, onClose }: Props) {
             拖入角色文件或点击选择
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            支持 JSON 格式的角色卡
+            支持 .json（角色卡）/ .txt（聊天记录）/ .png（角色卡图片）
           </Typography>
         </Box>
         <input ref={fileRef} type="file" accept=".json,.png" hidden

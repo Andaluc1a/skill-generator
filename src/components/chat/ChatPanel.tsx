@@ -7,6 +7,7 @@ import { Box, Typography, IconButton, Button } from '@mui/material';
 import TuneIcon from '@mui/icons-material/Tune';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/DeleteSweep';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/store/appStore';
 import { streamChat, tweakPersona } from '@/utils/personaTweaker';
@@ -170,6 +171,21 @@ export function ChatPanel() {
     }
   };
 
+  const handleExportChat = () => {
+    if (!char || messages.length === 0) return;
+    const text = messages.map(m => {
+      const name = m.role === 'user' ? '你' : char.name;
+      return `${name}：${m.content}`;
+    }).join('\n\n');
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-${char.name}-${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!char) {
     return (
       <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -187,6 +203,9 @@ export function ChatPanel() {
         <Box sx={{ flexGrow: 1 }} />
         <IconButton size="small" onClick={() => { clearMessages(char.id); setMessages([]); }} title="清空聊天记录">
           <DeleteIcon fontSize="small" />
+        </IconButton>
+        <IconButton size="small" onClick={handleExportChat} title="导出聊天记录">
+          <DownloadIcon fontSize="small" />
         </IconButton>
         <Button
           variant="outlined"

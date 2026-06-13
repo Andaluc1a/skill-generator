@@ -163,8 +163,15 @@ export function CreateWizard({ open, onClose }: Props) {
         {step === 2 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Alert severity="info" sx={{ mb: 1 }}>
-              最关键的一步！把 ta 说过的原话贴进来，哪怕 3-5 句也很有用。从弹幕截图、聊天记录、漫画台词里找。
+              最关键的一步！把 ta 说过的原话贴进来，哪怕 3-5 句也很有用。
             </Alert>
+
+            <Typography variant="body2" sx={{ fontSize: 12, color: 'text.secondary', mb: 1 }}>
+              💡 <strong>从微信/QQ 导出：</strong><br/>
+              · 微信：长按消息 → 多选 → 合并转发给自己 → 复制文字 → 粘贴到下面<br/>
+              · QQ：消息管理器 → 右键导出为 .txt → 用记事本打开 → 复制粘贴<br/>
+              · 或者在聊天记录里挑 10 句 ta 最常说的话，直接打出来
+            </Typography>
 
             <TextField label="贴 ta 的原话" value={samples} onChange={e => setSamples(e.target.value)}
               fullWidth multiline minRows={6} maxRows={12}
