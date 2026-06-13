@@ -6,14 +6,11 @@ import { useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField,
   Stepper, Step, StepLabel, Box, Typography, Chip, ToggleButton, ToggleButtonGroup,
-  Alert,
+  Alert, LinearProgress, Radio, RadioGroup, FormControlLabel, FormControl, FormLabel,
 } from '@mui/material';
 import { useApp, generateId } from '@/store/appStore';
 import type { Character } from '@/types/character';
-import { DEFAULT_API_CONFIG } from '@/llm';
-import { OpenAICompatibleProvider } from '@/llm';
-import { encodeBase64 } from '@/utils/storage';
-import { LLM_CONFIG } from '@/utils/constants';
+import { generateSystemPrompt, type ProgressCallback } from '@/utils/voiceExtractor';
 
 const TONE_OPTIONS = ['温柔', '毒舌', '幽默', '严肃', '傲娇', '话痨', '沉默', '热情', '夸张', '冷静', '幼稚', '沧桑'];
 const STYLE_OPTIONS = ['句子很短', '句子很长', '爱用emoji', '从来不用emoji', '爱用感叹号', '爱用省略号', '爱用反问', '直接给结论', '有口音', '用方言', '爱用比喻', '说话直接'];
@@ -38,9 +35,12 @@ export function CreateWizard({ open, onClose }: Props) {
   const [topics, setTopics] = useState('');
   const [avoid, setAvoid] = useState('');
   const [samples, setSamples] = useState('');
+  const [sampleSide, setSampleSide] = useState<'monologue' | 'left' | 'right'>('monologue');
   const [knowledge, setKnowledge] = useState('');
   const [firstMsg, setFirstMsg] = useState('');
   const [avatar, setAvatar] = useState('🤖');
+
+  const [genProgress, setGenProgress] = useState({ step: 0, label: '', checked: [false, false, false] });
 
   const steps = ['基本信息', '说话风格', '贴原话', '专业知识', '示例对话'];
 
@@ -52,28 +52,29 @@ export function CreateWizard({ open, onClose }: Props) {
     if (!name.trim()) return;
     setLoading(true);
     setError('');
+    setGenProgress({ step: 0, label: '准备中...', checked: [false, false, false] });
 
-    // 尝试调 LLM 生成 System Prompt
-    let systemPrompt = '';
-    try {
-      const raw = localStorage.getItem('sg_api_config');
-      if (!raw) {
-        // 离线模式：用模板构建 prompt
-        systemPrompt = buildOfflinePrompt({ name, description, tone, catchphrases: catchphrases.filter(Boolean), style, topics, avoid, samples, knowledge, firstMsg, avatar });
-      } else {
-        const config = { ...DEFAULT_API_CONFIG, apiKey: '' };
-        try { Object.assign(config, JSON.parse(raw)); } catch { /* ignore */ }
-        if (config.apiKey) {
-          config.apiKey = decodeURIComponent(escape(atob(config.apiKey)));
-          systemPrompt = await generateWithLLM(config, { name, description, tone, catchphrases: catchphrases.filter(Boolean), style, topics, avoid, samples, knowledge, firstMsg, avatar });
-        } else {
-          systemPrompt = buildOfflinePrompt({ name, description, tone, catchphrases: catchphrases.filter(Boolean), style, topics, avoid, samples, knowledge, firstMsg, avatar });
-        }
-      }
-    } catch (err) {
-      // LLM 失败 → 离线生成
-      systemPrompt = buildOfflinePrompt({ name, description, tone, catchphrases: catchphrases.filter(Boolean), style, topics, avoid, samples, knowledge, firstMsg, avatar });
-    }
+    const onProgress: ProgressCallback = (step, label) => {
+      setGenProgress(prev => ({
+        step,
+        label,
+        checked: prev.checked.map((c, i) => i < step ? true : c),
+      }));
+    };
+
+    const systemPrompt = await generateSystemPrompt({
+      name: name.trim(),
+      description: description.trim(),
+      tone,
+      catchphrases: catchphrases.filter(Boolean),
+      style,
+      topics,
+      avoid: avoid.trim(),
+      knowledge: knowledge.trim(),
+      firstMsg: firstMsg.trim(),
+      rawSamples: samples.trim(),
+      sampleSide,
+    }, onProgress);
 
     const char: Character = {
       id: generateId(),
@@ -161,8 +162,26 @@ export function CreateWizard({ open, onClose }: Props) {
         {/* Step 2: 贴原话 */}
         {step === 2 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Alert severity="info" sx={{ mb: 1 }}>最关键的一步！把 ta 说过的原话贴进来，哪怕3-5句也很有用。从弹幕截图、聊天记录、漫画台词里找。</Alert>
-            <TextField label="贴 ta 的原话" value={samples} onChange={e => setSamples(e.target.value)} fullWidth multiline minRows={6} maxRows={12} placeholder={`"哼！我才不是关心你呢！"\n"笨蛋，这点小事都做不好..."\n"你...你回来了啊...还挺想你的..."`} />
+            <Alert severity="info" sx={{ mb: 1 }}>
+              最关键的一步！把 ta 说过的原话贴进来，哪怕 3-5 句也很有用。从弹幕截图、聊天记录、漫画台词里找。
+            </Alert>
+
+            <TextField label="贴 ta 的原话" value={samples} onChange={e => setSamples(e.target.value)}
+              fullWidth multiline minRows={6} maxRows={12}
+              placeholder={`"哼！我才不是关心你呢！"\n"笨蛋，这点小事都做不好..."\n"你...你回来了啊...还挺想你的..."`} />
+
+            {samples.trim().length > 20 && (
+              <FormControl component="fieldset" sx={{ mt: 1 }}>
+                <FormLabel component="legend" sx={{ fontSize: 13, mb: 1 }}>
+                  如果贴的是和 ta 的聊天记录，告诉 AI 哪边是 ta：
+                </FormLabel>
+                <RadioGroup value={sampleSide} onChange={e => setSampleSide(e.target.value as typeof sampleSide)}>
+                  <FormControlLabel value="monologue" control={<Radio size="small" />} label="只贴了 ta 单边说的话（最理想！不用分析）" />
+                  <FormControlLabel value="right" control={<Radio size="small" />} label="左边是我，右边是 ta" />
+                  <FormControlLabel value="left" control={<Radio size="small" />} label="左边是 ta，右边是我" />
+                </RadioGroup>
+              </FormControl>
+            )}
           </Box>
         )}
 
@@ -174,11 +193,35 @@ export function CreateWizard({ open, onClose }: Props) {
           </Box>
         )}
 
-        {/* Step 4: 示例对话 */}
+        {/* Step 4: 开场白 + 生成 */}
         {step === 4 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Alert severity="info" sx={{ mb: 1 }}>写一句 ta 的开口第一句话。用户第一次跟 ta 聊天时，ta 会主动说这句。</Alert>
-            <TextField label="ta 的开场白" value={firstMsg} onChange={e => setFirstMsg(e.target.value)} fullWidth multiline minRows={2} placeholder="桐人君，你终于来了！/ 哎呀妈呀，可算来人了！/ 查询已接收。请描述你的需求。" />
+            <Alert severity="info" sx={{ mb: 1 }}>
+              写一句 ta 的开场白。用户第一次跟 ta 聊天时，ta 会主动说这句。
+            </Alert>
+            <TextField label="ta 的开场白" value={firstMsg} onChange={e => setFirstMsg(e.target.value)}
+              fullWidth multiline minRows={2}
+              placeholder="桐人君，你终于来了！/ 哎呀妈呀，可算来人了！/ 查询已接收。请描述你的需求。" />
+
+            {loading && (
+              <Box sx={{ mt: 2 }}>
+                {[1, 2, 3].map(i => (
+                  <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, fontSize: 13 }}>
+                    {genProgress.checked[i-1] ? (
+                      <Box component="span" sx={{ color: 'success.main' }}>✓</Box>
+                    ) : genProgress.step === i ? (
+                      <Box component="span" sx={{ color: 'primary.main', animation: 'pulse 1.5s ease-in-out infinite' }}>○</Box>
+                    ) : (
+                      <Box component="span" sx={{ color: 'text.disabled' }}>○</Box>
+                    )}
+                    <Typography variant="body2" color={genProgress.step >= i ? 'text.primary' : 'text.disabled'}>
+                      {i === 1 ? '分析 ta 的说话方式...' : i === 2 ? '生成示例对话...' : '构建角色...'}
+                    </Typography>
+                  </Box>
+                ))}
+                <LinearProgress sx={{ mt: 1, borderRadius: 1, height: 4 }} />
+              </Box>
+            )}
           </Box>
         )}
       </DialogContent>
@@ -202,67 +245,4 @@ export function CreateWizard({ open, onClose }: Props) {
       </DialogActions>
     </Dialog>
   );
-}
-
-// 离线生成 System Prompt（不需要 LLM API）
-function buildOfflinePrompt(data: {
-  name: string; description: string; tone: string[]; catchphrases: string[];
-  style: string[]; topics: string; avoid: string; samples: string;
-  knowledge: string; firstMsg: string; avatar: string;
-}): string {
-  const parts = [
-    `你是${data.name}。${data.description || '一个独特的AI角色'}。`,
-    `你永远以${data.name}的身份说话，不跳出角色。`,
-  ];
-  if (data.tone.length) parts.push(`说话语气：${data.tone.join('、')}。`);
-  if (data.catchphrases.length) parts.push(`常用口头禅：${data.catchphrases.join('、')}。`);
-  if (data.style.length) parts.push(`说话特点：${data.style.join('、')}。`);
-  if (data.topics.trim()) parts.push(`你喜欢的聊天话题：${data.topics}。`);
-  if (data.avoid.trim()) parts.push(`你绝对不说的话或不做的事：${data.avoid}。`);
-  if (data.samples.trim()) parts.push(`以下是你说过的话，请模仿这种说话方式：\n"""\n${data.samples}\n"""`);
-  if (data.knowledge.trim()) parts.push(`你拥有以下专业知识，回答相关问题时请引用：\n"""\n${data.knowledge}\n"""`);
-  parts.push('回答要符合你的角色设定。不要用"作为一个AI"或"我无法"这类话。你就是这个角色。');
-  return parts.join('\n\n');
-}
-
-// LLM 生成 System Prompt
-async function generateWithLLM(config: { model: string; baseURL: string; apiKey: string; temperature: number; maxTokens: number }, data: {
-  name: string; description: string; tone: string[]; catchphrases: string[];
-  style: string[]; topics: string; avoid: string; samples: string;
-  knowledge: string; firstMsg: string; avatar: string;
-}): Promise<string> {
-  const provider = new OpenAICompatibleProvider(config as any);
-  const metaPrompt = `你是一个 System Prompt 设计专家。根据以下信息，生成一份能让 AI 精确扮演这个角色的 System Prompt。
-
-角色名称：${data.name}
-性格描述：${data.description || '未指定'}
-说话语气：${data.tone.join('、') || '未指定'}
-口头禅：${data.catchphrases.join('、') || '未指定'}
-说话特点：${data.style.join('、') || '未指定'}
-喜欢的话题：${data.topics || '未指定'}
-禁忌：${data.avoid || '未指定'}
-原话样本：${data.samples ? '\n"""\n' + data.samples + '\n"""' : '无'}
-专业知识：${data.knowledge ? '\n"""\n' + data.knowledge + '\n"""' : '无'}
-
-System Prompt 必须包含：
-1. 角色身份声明（我是谁）
-2. 说话风格约束（语气、口头禅、句式）
-3. 行为准则（该做什么、不该做什么）
-4. 知识范围
-5. 示例对话（如果有样本的话）
-
-直接输出完整 System Prompt，不要任何解释或标签。`;
-
-  let result = '';
-  for await (const chunk of provider.chat(
-    [{ role: 'user', content: metaPrompt }],
-    undefined,
-    { temperature: 0.7, maxTokens: 2048, stream: true }
-  )) {
-    if (chunk.type === 'delta') result += chunk.content;
-    if (chunk.type === 'done') break;
-    if (chunk.type === 'error') throw new Error(chunk.message);
-  }
-  const cleaned = result.trim().replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '');
-  return cleaned.trim() || buildOfflinePrompt(data);
 }
