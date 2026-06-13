@@ -21,6 +21,8 @@ export function HomePage() {
   const [importOpen, setImportOpen] = useState(false);
   const [previewChar, setPreviewChar] = useState<Character | null>(null);
   const [previewIdentity, setPreviewIdentity] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewMsgs, setPreviewMsgs] = useState<string[]>([]);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [menuChar, setMenuChar] = useState<Character | null>(null);
 
@@ -50,6 +52,50 @@ export function HomePage() {
     dispatch({ type: 'ADD_CHARACTER', payload: char });
     setPreviewChar(null);
     navigate('/chat');
+  };
+
+  const handlePreviewTalk = async () => {
+    if (!previewChar) return;
+    setPreviewLoading(true);
+    setPreviewMsgs([]);
+
+    const prompt = buildPromptFromTemplate(previewChar, previewIdentity.trim());
+    const raw = localStorage.getItem('sg_api_config');
+    if (!raw) {
+      setPreviewMsgs([previewChar.firstMessage, '（未配置 API Key，请去设置页配置后可预览对话）']);
+      setPreviewLoading(false);
+      return;
+    }
+    try {
+      const cfg = JSON.parse(raw);
+      const { OpenAICompatibleProvider } = await import('@/llm');
+      const provider = new OpenAICompatibleProvider({ ...cfg, apiKey: new TextDecoder().decode(Uint8Array.from(atob(cfg.apiKey), c => c.charCodeAt(0))) });
+      const line1 = previewChar.firstMessage;
+      let reply1 = '';
+      for await (const c of provider.chat([
+        { role: 'system', content: prompt },
+        { role: 'assistant', content: line1 },
+        { role: 'user', content: '你好呀！' },
+      ], undefined, { temperature: 0.8, maxTokens: 150, stream: true })) {
+        if (c.type === 'delta') reply1 += c.content;
+        if (c.type === 'done') break;
+      }
+      let reply2 = '';
+      for await (const c of provider.chat([
+        { role: 'system', content: prompt },
+        { role: 'assistant', content: line1 },
+        { role: 'user', content: '你好呀！' },
+        { role: 'assistant', content: reply1 },
+        { role: 'user', content: '最近怎么样？' },
+      ], undefined, { temperature: 0.8, maxTokens: 150, stream: true })) {
+        if (c.type === 'delta') reply2 += c.content;
+        if (c.type === 'done') break;
+      }
+      setPreviewMsgs([line1, reply1, reply2]);
+    } catch {
+      setPreviewMsgs([previewChar.firstMessage, '（预览生成失败，请检查 API 配置）']);
+    }
+    setPreviewLoading(false);
   };
 
   const handleOpenMenu = (e: React.MouseEvent<HTMLElement>, char: Character) => {
@@ -171,13 +217,33 @@ export function HomePage() {
                 fullWidth size="small"
                 placeholder="我叫小明，是 ta 的学弟..."
                 helperText="告诉 AI 你是谁，它就不会乱猜了"
-                sx={{ mb: 2 }}
+                sx={{ mb: 1.5 }}
               />
 
-              <Button variant="contained" fullWidth size="large" onClick={handleStartChat}
-                sx={{ borderRadius: 2, py: 1.5, fontSize: 16 }}>
-                💬 开始聊天
-              </Button>
+              {/* 预览对话 */}
+              {previewMsgs.length > 0 && (
+                <Box sx={{ mb: 2, border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, bgcolor: 'grey.50', maxHeight: 180, overflow: 'auto' }}>
+                  {previewMsgs.map((msg, i) => (
+                    <Box key={i} sx={{ mb: 1 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: i % 2 === 0 ? 'secondary.main' : 'primary.main', display: 'block', mb: 0.2 }}>
+                        {i === 0 ? previewChar.name : i % 2 === 0 ? previewChar.name : '你'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: 12, lineHeight: 1.4 }}>{msg}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button variant="outlined" size="small" onClick={handlePreviewTalk}
+                  disabled={previewLoading} sx={{ flex: 1, fontSize: 12, textTransform: 'none' }}>
+                  {previewLoading ? '生成预览...' : '👀 预览对话效果'}
+                </Button>
+                <Button variant="contained" size="small" onClick={handleStartChat}
+                  sx={{ flex: 1, fontSize: 12, textTransform: 'none', borderRadius: 2 }}>
+                  💬 开始聊天
+                </Button>
+              </Box>
             </DialogContent>
           </>
         )}
