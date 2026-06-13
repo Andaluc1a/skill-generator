@@ -10,7 +10,7 @@ interface SamplePair {
 }
 
 /** 从用户贴的原始对话中解析出对话对 */
-export function parseSamplePairs(rawSamples: string, mySide: 'left' | 'right' | 'monologue'): SamplePair[] {
+export function parseSamplePairs(rawSamples: string, mySide: string): SamplePair[] {
   const lines = rawSamples.split('\n').filter(l => l.trim());
   const pairs: SamplePair[] = [];
 
