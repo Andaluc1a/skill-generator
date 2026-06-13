@@ -1,7 +1,7 @@
 // 首页
 
 import { useState } from 'react';
-import { Box, Typography, Button, Grid, IconButton, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Typography, Button, Grid, IconButton, Menu, MenuItem, ListItemIcon, ListItemText, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Chip } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
@@ -19,6 +19,8 @@ export function HomePage() {
   const navigate = useNavigate();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [previewChar, setPreviewChar] = useState<Character | null>(null);
+  const [previewIdentity, setPreviewIdentity] = useState('');
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [menuChar, setMenuChar] = useState<Character | null>(null);
 
@@ -30,17 +32,23 @@ export function HomePage() {
   const handleSelectTemplate = (tplIdx: number) => {
     const tpl = TEMPLATES[tplIdx];
     if (!tpl) return;
-    // 用模板数据直接生成角色 → 立刻进入聊天
-    const prompt = buildPromptFromTemplate(tpl);
+    setPreviewChar(tpl);
+    setPreviewIdentity('');
+  };
+
+  const handleStartChat = () => {
+    if (!previewChar) return;
+    const prompt = buildPromptFromTemplate(previewChar, previewIdentity.trim());
     const char: Character = {
-      ...tpl,
+      ...previewChar,
       id: generateId(),
       systemPrompt: prompt,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      firstMessage: tpl.firstMessage || `你好，我是${tpl.name}。`,
+      firstMessage: previewChar.firstMessage || `你好，我是${previewChar.name}。`,
     };
     dispatch({ type: 'ADD_CHARACTER', payload: char });
+    setPreviewChar(null);
     navigate('/chat');
   };
 
@@ -135,6 +143,46 @@ export function HomePage() {
       <CreateWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
 
+      {/* 角色预览弹窗 */}
+      <Dialog open={!!previewChar} onClose={() => setPreviewChar(null)} maxWidth="xs" fullWidth>
+        {previewChar && (
+          <>
+            <DialogTitle sx={{ textAlign: 'center', pt: 3 }}>
+              <Box sx={{ fontSize: 48, mb: 1 }}>{previewChar.avatar}</Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>{previewChar.name}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {previewChar.description}
+              </Typography>
+            </DialogTitle>
+            <DialogContent>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="caption" color="text.secondary">说话风格</Typography>
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
+                  {[...(previewChar.tone || []), ...(previewChar.catchphrases || []).filter(Boolean)].map(t => (
+                    <Chip key={t} label={t} size="small" sx={{ fontSize: 10, height: 20 }} />
+                  ))}
+                </Box>
+              </Box>
+
+              <TextField
+                label="你是谁？（选填）"
+                value={previewIdentity}
+                onChange={e => setPreviewIdentity(e.target.value)}
+                fullWidth size="small"
+                placeholder="我叫小明，是 ta 的学弟..."
+                helperText="告诉 AI 你是谁，它就不会乱猜了"
+                sx={{ mb: 2 }}
+              />
+
+              <Button variant="contained" fullWidth size="large" onClick={handleStartChat}
+                sx={{ borderRadius: 2, py: 1.5, fontSize: 16 }}>
+                💬 开始聊天
+              </Button>
+            </DialogContent>
+          </>
+        )}
+      </Dialog>
+
       {/* 角色操作菜单 */}
       <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => { setMenuAnchor(null); setMenuChar(null); }}>
         <MenuItem onClick={() => handleExport('skill')}>
@@ -154,10 +202,12 @@ export function HomePage() {
   );
 }
 
-function buildPromptFromTemplate(tpl: Character): string {
+function buildPromptFromTemplate(tpl: Character, identity = ''): string {
   const parts = [
     `你是${tpl.name}。${tpl.description}。永远以${tpl.name}的身份说话，不跳出角色。`,
-    `你的对话对象就是你认识的那个人——你们有你们自己的关系（朋友、同学、学弟妹等），但你不需要帮ta定义身份。如果ta问"我是谁"或类似问题，你应该反问ta或者用你们日常的称呼，而不是替ta编造身份或说ta失忆了。`,
+    identity
+      ? `【与你聊天的人】${identity}。你知道ta是谁，用你们日常的关系来称呼和回应ta。`
+      : `你的对话对象就是你认识的那个人——你们有你们自己的关系（朋友、同学、学弟妹等），但你不需要帮ta定义身份。如果ta问"我是谁"或类似问题，你应该反问ta或者用你们日常的称呼，而不是替ta编造身份或说ta失忆了。`,
   ];
   if (tpl.tone.length) parts.push(`说话语气：${tpl.tone.join('、')}。`);
   if (tpl.catchphrases.length) parts.push(`常用口头禅：${tpl.catchphrases.join('、')}。`);
