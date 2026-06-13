@@ -23,6 +23,9 @@ export function HomePage() {
   const [previewIdentity, setPreviewIdentity] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewMsgs, setPreviewMsgs] = useState<string[]>([]);
+  const [previewAvatar, setPreviewAvatar] = useState('');
+  const [previewAvatarGen, setPreviewAvatarGen] = useState(false);
+  const [previewAvatarUrls, setPreviewAvatarUrls] = useState<string[]>([]);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [menuChar, setMenuChar] = useState<Character | null>(null);
 
@@ -36,6 +39,8 @@ export function HomePage() {
     if (!tpl) return;
     setPreviewChar(tpl);
     setPreviewIdentity('');
+    setPreviewAvatar('');
+    setPreviewAvatarUrls([]);
   };
 
   const handleStartChat = () => {
@@ -44,6 +49,7 @@ export function HomePage() {
     const char: Character = {
       ...previewChar,
       id: generateId(),
+      avatar: previewAvatar || previewChar.avatar,
       systemPrompt: prompt,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -96,6 +102,15 @@ export function HomePage() {
       setPreviewMsgs([previewChar.firstMessage, '（预览生成失败，请检查 API 配置）']);
     }
     setPreviewLoading(false);
+  };
+
+  const handlePreviewAvatarGen = (desc: string) => {
+    if (!desc.trim()) return;
+    setPreviewAvatarGen(true);
+    setPreviewAvatarUrls([1, 2, 3, 4].map(s =>
+      `https://image.pollinations.ai/prompt/${encodeURIComponent(desc)}?width=200&height=200&seed=${s}&nologo=true`,
+    ));
+    setPreviewAvatarGen(false);
   };
 
   const handleOpenMenu = (e: React.MouseEvent<HTMLElement>, char: Character) => {
@@ -194,7 +209,12 @@ export function HomePage() {
         {previewChar && (
           <>
             <DialogTitle sx={{ textAlign: 'center', pt: 3 }}>
-              <Box sx={{ fontSize: 48, mb: 1 }}>{previewChar.avatar}</Box>
+              <Box sx={{ fontSize: 48, mb: 1 }}>
+                {previewAvatar ? (
+                  <Box component="img" src={previewAvatar} alt={previewChar.name}
+                    sx={{ width: 80, height: 80, borderRadius: 3, objectFit: 'cover', mx: 'auto', display: 'block' }} />
+                ) : previewChar.avatar}
+              </Box>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>{previewChar.name}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                 {previewChar.description}
@@ -208,6 +228,28 @@ export function HomePage() {
                     <Chip key={t} label={t} size="small" sx={{ fontSize: 10, height: 20 }} />
                   ))}
                 </Box>
+              </Box>
+
+              {/* AI 生成头像 */}
+              <Box sx={{ mb: 1.5 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                  一键生成头像
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  <TextField size="small" placeholder={`描述${previewChar.name}的样子`} sx={{ flex: 1 }} inputProps={{ id: 'tpl-avatar-desc' }} />
+                  <Button size="small" variant="contained" disabled={previewAvatarGen} sx={{ minWidth: 0, px: 1.5, fontSize: 11, borderRadius: 1 }}
+                    onClick={() => { const v = (document.querySelector('#tpl-avatar-desc') as HTMLInputElement)?.value; if (v) handlePreviewAvatarGen(v); }}>
+                    {previewAvatarGen ? '...' : '生成'}
+                  </Button>
+                </Box>
+                {previewAvatarUrls.length > 0 && (
+                  <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+                    {previewAvatarUrls.map((url, i) => (
+                      <Box key={i} component="img" src={url} onClick={() => setPreviewAvatar(url)}
+                        sx={{ width: 44, height: 44, borderRadius: 1, objectFit: 'cover', cursor: 'pointer', border: previewAvatar === url ? 2 : 0, borderColor: 'primary.main', opacity: previewAvatar === url || !previewAvatar ? 1 : 0.5 }} />
+                    ))}
+                  </Box>
+                )}
               </Box>
 
               <TextField
