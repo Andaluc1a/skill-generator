@@ -3,14 +3,33 @@
 import type { Character } from '@/types/character';
 
 export function exportSkillMD(character: Character): string {
+  const parts = character.promptParts || { identity: '', voice: '', rules: '', samples: '', knowledge: '' };
+
   return `---
 name: ${slugify(character.name)}
 description: ${character.description}
 avatar: ${character.avatar}
 tags: [${character.tags.join(', ')}]
+tone: [${character.tone.join(', ')}]
+catchphrases: [${character.catchphrases.filter(Boolean).join(', ')}]
 ---
 
+# ${character.name}
+
+## 角色身份
+${parts.identity || `你是${character.name}。${character.description}`}
+
+## 说话风格
+${parts.voice || character.tone.join('、') + '。'}
+
+## 行为准则
+${parts.rules || character.avoid || '无特殊限制。'}
+
+${parts.samples ? `## 示例对话\n${parts.samples}\n` : ''}${parts.knowledge ? `## 知识范围\n${parts.knowledge}\n` : ''}
+## 完整 System Prompt
+\`\`\`
 ${character.systemPrompt}
+\`\`\`
 `;
 }
 

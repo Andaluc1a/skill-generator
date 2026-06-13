@@ -132,6 +132,13 @@ export function ChatPanel() {
     }
   };
 
+  const handleDirectEdit = (newPrompt: string) => {
+    promptRef.current = newPrompt;
+    if (char) {
+      dispatch({ type: 'UPDATE_CHARACTER', payload: { ...char, systemPrompt: newPrompt, updatedAt: Date.now() } });
+    }
+  };
+
   if (!char) {
     return (
       <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -176,7 +183,7 @@ export function ChatPanel() {
       <ChatInput onSend={handleSend} onStop={handleStop} isStreaming={isStreaming} />
 
       {/* 微调弹窗 */}
-      <TweakDialog open={tweakOpen} onClose={() => setTweakOpen(false)} onApply={handleTweak} />
+      <TweakDialog open={tweakOpen} onClose={() => setTweakOpen(false)} character={char} onApply={handleTweak} onDirectEdit={handleDirectEdit} />
     </Box>
   );
 }

@@ -1,10 +1,18 @@
 // Character 类型定义
 
+export interface PromptParts {
+  identity: string;   // 角色身份：「你是老王，东北退休工程师」
+  voice: string;      // 说话风格：「带东北口音，爱用修理比喻」
+  rules: string;      // 行为准则：「不煽情，不用网络用语」
+  samples: string;    // 示例对话：「xx说：... / 你回：...」
+  knowledge: string;  // 专业知识摘要
+}
+
 export interface Character {
   id: string;
   name: string;
   description: string;
-  avatar: string;         // emoji
+  avatar: string;
   systemPrompt: string;
   firstMessage: string;
   tags: string[];
@@ -15,8 +23,33 @@ export interface Character {
   avoid: string;
   knowledge: string;
   samples: string;
+  promptParts?: PromptParts;  // 分区结构（V2 新增）
   createdAt: number;
   updatedAt: number;
+}
+
+export function parsePromptParts(prompt: string): PromptParts {
+  const identity = extractSection(prompt, ['你是', '我是'], 1) || '';
+  const voice = extractSection(prompt, ['说话语气', '说话风格', '句式', '口头禅'], 0) || '';
+  const rules = extractSection(prompt, ['不能说', '不做', '行为', '准则', '限制'], 0) || '';
+  const samples = extractSection(prompt, ['示例', '以下是你说过的话', '对话示例'], 0) || '';
+  const knowledge = extractSection(prompt, ['专业知识', '你拥有', '知识范围'], 0) || '';
+
+  return { identity, voice, rules, samples, knowledge };
+}
+
+function extractSection(text: string, keywords: string[], linesBefore: number): string {
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? '';
+    if (keywords.some(kw => line.includes(kw))) {
+      const start = Math.max(0, i - linesBefore);
+      const section = lines.slice(start, i + 8).join('\n');
+      return section.trim();
+    }
+  }
+  // fallback: return first line as identity
+  return lines[0]?.trim() || '';
 }
 
 export function createEmptyCharacter(): Character {
