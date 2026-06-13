@@ -42,8 +42,39 @@ export function CreateWizard({ open, onClose }: Props) {
   const [myIdentity, setMyIdentity] = useState('');
 
   const [genProgress, setGenProgress] = useState({ step: 0, label: '', checked: [false, false, false] });
+  const [wizPreviewMsgs, setWizPreviewMsgs] = useState<string[]>([]);
+  const [wizPreviewLoading, setWizPreviewLoading] = useState(false);
 
   const steps = ['基本信息', '说话风格', '贴原话', '专业知识', '示例对话'];
+
+  const handleWizPreview = async () => {
+    if (!name.trim()) return;
+    setWizPreviewLoading(true);
+    setWizPreviewMsgs([]);
+    const raw = localStorage.getItem('sg_api_config');
+    if (!raw) { setWizPreviewMsgs([firstMsg.trim() || '你好！', '（需要先配置 API Key）']); setWizPreviewLoading(false); return; }
+    try {
+      const cfg = JSON.parse(raw);
+      const { OpenAICompatibleProvider } = await import('@/llm');
+      const provider = new OpenAICompatibleProvider({ ...cfg, apiKey: new TextDecoder().decode(Uint8Array.from(atob(cfg.apiKey), c => c.charCodeAt(0))) });
+      const prompt = await generateSystemPrompt({
+        name: name.trim(), description: description.trim(), tone, catchphrases: catchphrases.filter(Boolean), style, topics,
+        avoid: avoid.trim(), knowledge: knowledge.trim(), firstMsg: firstMsg.trim(), rawSamples: samples.trim(), sampleSide, myIdentity: myIdentity.trim(),
+      });
+      const line1 = firstMsg.trim() || `你好，我是${name}。`;
+      let reply = '';
+      for await (const c of provider.chat([
+        { role: 'system', content: prompt },
+        { role: 'assistant', content: line1 },
+        { role: 'user', content: '你好呀！' },
+      ], undefined, { temperature: 0.8, maxTokens: 150, stream: true })) {
+        if (c.type === 'delta') reply += c.content;
+        if (c.type === 'done') break;
+      }
+      setWizPreviewMsgs([line1, reply]);
+    } catch { setWizPreviewMsgs([firstMsg.trim() || '你好！', '（预览失败）']); }
+    setWizPreviewLoading(false);
+  };
 
   const toggleArray = (arr: string[], setArr: (v: string[]) => void, value: string) => {
     setArr(arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]);
@@ -221,6 +252,24 @@ export function CreateWizard({ open, onClose }: Props) {
                 fullWidth size="small"
                 placeholder="我叫小明，是 ta 的学弟 / 我是 ta 的老同学 / 我们刚认识..." />
             </Box>
+
+            {/* 预览对话 */}
+            <Button variant="outlined" size="small" onClick={handleWizPreview}
+              disabled={wizPreviewLoading || !name.trim()} sx={{ alignSelf: 'flex-start', textTransform: 'none', fontSize: 12 }}>
+              {wizPreviewLoading ? '生成预览...' : '👀 预览对话效果'}
+            </Button>
+            {wizPreviewMsgs.length > 0 && (
+              <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, bgcolor: 'grey.50', maxHeight: 140, overflow: 'auto' }}>
+                {wizPreviewMsgs.map((msg, i) => (
+                  <Box key={i} sx={{ mb: 0.5 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: i === 0 ? 'secondary.main' : 'primary.main' }}>
+                      {i === 0 ? (name || '角色') : '你'}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: 12, lineHeight: 1.4 }}>{msg}</Typography>
+                  </Box>
+                ))}
+              </Box>
+            )}
 
             {loading && (
               <Box sx={{ mt: 2 }}>
