@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/store/appStore';
 import { streamChat, tweakPersona } from '@/utils/personaTweaker';
 import { extractKnowledge, matchKnowledge, formatKnowledgePrompt, type KnowledgeEntry } from '@/utils/knowledgeExtractor';
+import { parseSamplePairs, findRelevantSamples, formatSamplePrompt } from '@/utils/sampleMemory';
 import { DEFAULT_API_CONFIG, type ChatMessage, type ApiConfig } from '@/llm';
 import { encodeBase64, decodeBase64, getStorage, setStorage } from '@/utils/storage';
 import { ChatMessage as ChatBubble } from './ChatMessage';
@@ -114,6 +115,14 @@ export function ChatPanel() {
     const matched = matchKnowledge(text, knowledgeEntries);
     if (matched.length > 0) {
       sysMsg.content = promptRef.current + '\n\n' + formatKnowledgePrompt(matched);
+    }
+    // 注入相关原话样本（如果角色有 sample 数据）
+    if (char?.samples?.trim()) {
+      const pairs = parseSamplePairs(char.samples, 'monologue');
+      const relevant = findRelevantSamples(text, pairs);
+      if (relevant.length > 0) {
+        sysMsg.content = (sysMsg.content as string) + '\n\n' + formatSamplePrompt(relevant, char.name);
+      }
     }
     setIsStreaming(true);
 
