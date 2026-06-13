@@ -97,9 +97,32 @@ export function HomePage() {
         </>
       )}
 
-      {/* 预设模板 */}
+      {/* 预设模板 — 分类展示 */}
+      {[
+        { label: '二次元', tags: ['二次元'] },
+        { label: '生活角色', tags: ['生活', '职场', '长辈'] },
+        { label: '创意角色', tags: ['创意', '可爱', '搞笑', '穿越'] },
+        { label: '情感陪伴', tags: ['陪伴', '友情', '温暖'] },
+      ].map(category => {
+        const catTemplates = templates.filter(t => t.tags.some(tag => category.tags.includes(tag)));
+        if (catTemplates.length === 0) return null;
+        return (
+          <Box key={category.label} sx={{ mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.secondary', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              {category.label}
+            </Typography>
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              {catTemplates.map(tpl => (
+                <Grid item xs={6} sm={4} md={2.4} key={tpl.id}>
+                  <CharacterCard character={tpl} onClick={() => handleSelectTemplate(templates.indexOf(tpl))} compact />
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        );
+      })}
+
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>试试这些模板</Typography>
         <Button variant="outlined" size="small" startIcon={<AddIcon />} onClick={() => setWizardOpen(true)}>
           创建新角色
         </Button>
@@ -107,13 +130,6 @@ export function HomePage() {
           导入角色
         </Button>
       </Box>
-      <Grid container spacing={2}>
-        {templates.map((tpl, i) => (
-          <Grid item xs={6} sm={4} md={2.4} key={tpl.id}>
-            <CharacterCard character={tpl} onClick={() => handleSelectTemplate(i)} compact />
-          </Grid>
-        ))}
-      </Grid>
 
       {/* 创建向导弹窗 */}
       <CreateWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
