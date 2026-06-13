@@ -44,8 +44,23 @@ export function CreateWizard({ open, onClose }: Props) {
   const [genProgress, setGenProgress] = useState({ step: 0, label: '', checked: [false, false, false] });
   const [wizPreviewMsgs, setWizPreviewMsgs] = useState<string[]>([]);
   const [wizPreviewLoading, setWizPreviewLoading] = useState(false);
+  const [avatarGenLoading, setAvatarGenLoading] = useState(false);
+  const [avatarUrls, setAvatarUrls] = useState<string[]>([]);
 
   const steps = ['基本信息', '说话风格', '贴原话', '专业知识', '示例对话'];
+
+  const handleAvatarGen = async (desc: string) => {
+    if (!desc.trim()) return;
+    setAvatarGenLoading(true);
+    const urls: string[] = [];
+    // Pollinations API 支持 seed 参数生成不同变体
+    const seeds = [1, 2, 3, 4];
+    for (const seed of seeds) {
+      urls.push(`https://image.pollinations.ai/prompt/${encodeURIComponent(desc)}?width=200&height=200&seed=${seed}&nologo=true`);
+    }
+    setAvatarUrls(urls);
+    setAvatarGenLoading(false);
+  };
 
   const handleWizPreview = async () => {
     if (!name.trim()) return;
@@ -154,9 +169,62 @@ export function CreateWizard({ open, onClose }: Props) {
         {/* Step 0: 基本信息 */}
         {step === 0 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <TextField value={avatar} onChange={e => setAvatar(e.target.value)} sx={{ width: 80 }} inputProps={{ style: { fontSize: 28, textAlign: 'center' } }} helperText="头像" />
-              <TextField label="角色名字" value={name} onChange={e => setName(e.target.value)} fullWidth required placeholder="比如：老王、亚丝娜" />
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+              {/* 头像区 */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                {avatar.startsWith('http') || avatar.startsWith('data:') ? (
+                  <Box component="img" src={avatar} alt={name} sx={{ width: 72, height: 72, borderRadius: 2, objectFit: 'cover', border: 2, borderColor: 'primary.main' }} />
+                ) : (
+                  <Box sx={{ width: 72, height: 72, borderRadius: 2, bgcolor: 'grey.100', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>
+                    {avatar}
+                  </Box>
+                )}
+                <TextField value={avatar} onChange={e => setAvatar(e.target.value)} size="small" sx={{ width: 80 }}
+                  inputProps={{ style: { fontSize: 20, textAlign: 'center' } }} placeholder="🤖" />
+              </Box>
+
+              <Box sx={{ flex: 1 }}>
+                <TextField label="角色名字" value={name} onChange={e => setName(e.target.value)} fullWidth required placeholder="比如：老王、亚丝娜" />
+                <Button variant="text" size="small" component="label" sx={{ mt: 0.5, textTransform: 'none', fontSize: 11 }}>
+                  📁 上传照片
+                  <input type="file" accept="image/*" hidden onChange={e => {
+                    const f = e.target.files?.[0]; if (!f) return;
+                    const r = new FileReader(); r.onload = () => setAvatar(r.result as string); r.readAsDataURL(f);
+                  }} />
+                </Button>
+              </Box>
+            </Box>
+
+            {/* AI 生成头像 */}
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>一键生成头像</Typography>
+              <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                <TextField size="small" placeholder="描述ta的样子，如：蓝色短发傲娇少女" value={avatarGenLoading ? '' : undefined}
+                  sx={{ flex: 1 }} onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      const val = (e.target as HTMLInputElement).value;
+                      if (val) handleAvatarGen(val);
+                    }
+                  }}
+                  InputProps={{ endAdornment:
+                    <Button size="small" variant="contained" disabled={avatarGenLoading} sx={{ minWidth: 0, px: 1, fontSize: 11, borderRadius: 1 }}
+                      onClick={() => { const input = (document.querySelector('#avatar-desc') as HTMLInputElement)?.value; if (input) handleAvatarGen(input); }}>
+                      {avatarGenLoading ? '...' : '生成'}
+                    </Button>,
+                    readOnly: avatarGenLoading,
+                  }}
+                  inputProps={{ id: 'avatar-desc' }}
+                />
+              </Box>
+              {avatarUrls.length > 0 && (
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {avatarUrls.map((url, i) => (
+                    <Box key={i} component="img" src={url} onClick={() => setAvatar(url)}
+                      sx={{ width: 60, height: 60, borderRadius: 1, objectFit: 'cover', cursor: 'pointer', border: avatar === url ? 2 : 0, borderColor: 'primary.main', opacity: avatar === url || !avatar ? 1 : 0.5, '&:hover': { opacity: 1 } }}
+                    />
+                  ))}
+                </Box>
+              )}
             </Box>
             <TextField label="一句话介绍 ta" value={description} onChange={e => setDescription(e.target.value)} fullWidth multiline minRows={2} placeholder="一个很嘴但真心对我好的死党" helperText="像跟朋友介绍一个人一样随意写" />
           </Box>
