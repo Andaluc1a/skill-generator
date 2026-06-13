@@ -8,6 +8,7 @@ import TuneIcon from '@mui/icons-material/Tune';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/DeleteSweep';
 import DownloadIcon from '@mui/icons-material/Download';
+import PersonIcon from '@mui/icons-material/Person';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/store/appStore';
 import { streamChat, tweakPersona } from '@/utils/personaTweaker';
@@ -49,6 +50,9 @@ export function ChatPanel() {
   const [correctOpen, setCorrectOpen] = useState(false);
   const [correctIndex, setCorrectIndex] = useState(-1);
   const [correctText, setCorrectText] = useState('');
+  const [identityOpen, setIdentityOpen] = useState(false);
+  const [identityInput, setIdentityInput] = useState('');
+  const myIdentityRef = useRef('');
   const abortRef = useRef<AbortController | null>(null);
   const streamingRef = useRef(false);
   const promptRef = useRef(char?.systemPrompt || '');
@@ -115,6 +119,10 @@ export function ChatPanel() {
     }
 
     const sysMsg: ChatMessage = { role: 'system', content: promptRef.current };
+    // 注入用户身份
+    if (myIdentityRef.current) {
+      sysMsg.content = (sysMsg.content as string) + `\n\n【与你聊天的人】${myIdentityRef.current}`;
+    }
     // 注入匹配的知识条目
     const matched = matchKnowledge(text, knowledgeEntries);
     if (matched.length > 0) {
@@ -275,6 +283,10 @@ export function ChatPanel() {
         <IconButton size="small" onClick={handleExportChat} title="导出聊天记录">
           <DownloadIcon fontSize="small" />
         </IconButton>
+        <IconButton size="small" onClick={() => { setIdentityInput(myIdentityRef.current); setIdentityOpen(true); }}
+          title="我的身份" sx={{ color: myIdentityRef.current ? 'primary.main' : undefined }}>
+          <PersonIcon fontSize="small" />
+        </IconButton>
         <Button
           variant="outlined"
           size="small"
@@ -305,6 +317,29 @@ export function ChatPanel() {
 
       {/* 微调弹窗 */}
       <TweakDialog open={tweakOpen} onClose={() => setTweakOpen(false)} character={char} onApply={handleTweak} onDirectEdit={handleDirectEdit} />
+
+      {/* 我的身份弹窗 */}
+      <Dialog open={identityOpen} onClose={() => setIdentityOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>我是谁</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            告诉 AI 你在这个角色面前是谁。比如「我是小明，你的学弟」「我是你的老同学」「我们刚认识」。
+          </Typography>
+          <TextField
+            autoFocus multiline minRows={2} maxRows={3} fullWidth
+            value={identityInput}
+            onChange={e => setIdentityInput(e.target.value)}
+            placeholder="我叫小明，是你的学弟..."
+            size="small"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIdentityOpen(false)}>取消</Button>
+          <Button onClick={() => { myIdentityRef.current = identityInput.trim(); setIdentityOpen(false); }} variant="contained">
+            保存
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* 纠正对话弹窗 */}
       <Dialog open={correctOpen} onClose={() => setCorrectOpen(false)} maxWidth="sm" fullWidth>
