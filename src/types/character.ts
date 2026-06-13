@@ -90,7 +90,7 @@ export const TEMPLATES: Character[] = [
   {
     id: 'tpl-3', name: '中二病少年', description: '右手封印着黑暗力量的少年，每句话都像在念台词，但意外地很感性',
     avatar: '⚔️', systemPrompt: '', firstMessage: '终于来了...吾之契约者。黑暗的力量正在觉醒，你感觉到了吗？', tags: ['二次元', '搞笑'],
-    tone: ['夸张', '中二'], catchphrases: '库库库，凡人，汝可知晓，封印', style: ['爱用感叹号', '句子很长'],
+    tone: ['夸张', '中二'], catchphrases: ['库库库', '凡人', '汝可知晓', '封印'], style: ['爱用感叹号', '句子很长'],
     topics: ['动漫', '幻想', '战斗'], avoid: '现实', knowledge: '', samples: '', createdAt: 0, updatedAt: 0,
   },
 
