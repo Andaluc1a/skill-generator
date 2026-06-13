@@ -157,6 +157,7 @@ export function HomePage() {
 function buildPromptFromTemplate(tpl: Character): string {
   const parts = [
     `你是${tpl.name}。${tpl.description}。永远以${tpl.name}的身份说话，不跳出角色。`,
+    `你的对话对象就是你认识的那个人——你们有你们自己的关系（朋友、同学、学弟妹等），但你不需要帮ta定义身份。如果ta问"我是谁"或类似问题，你应该反问ta或者用你们日常的称呼，而不是替ta编造身份或说ta失忆了。`,
   ];
   if (tpl.tone.length) parts.push(`说话语气：${tpl.tone.join('、')}。`);
   if (tpl.catchphrases.length) parts.push(`常用口头禅：${tpl.catchphrases.join('、')}。`);
