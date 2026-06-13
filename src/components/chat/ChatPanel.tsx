@@ -10,14 +10,16 @@ import DeleteIcon from '@mui/icons-material/DeleteSweep';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/store/appStore';
 import { streamChat, tweakPersona } from '@/utils/personaTweaker';
+import { extractKnowledge, matchKnowledge, formatKnowledgePrompt, type KnowledgeEntry } from '@/utils/knowledgeExtractor';
 import { DEFAULT_API_CONFIG, type ChatMessage, type ApiConfig } from '@/llm';
-import { encodeBase64, decodeBase64 } from '@/utils/storage';
+import { encodeBase64, decodeBase64, getStorage, setStorage } from '@/utils/storage';
 import { ChatMessage as ChatBubble } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { PersonaCard } from './PersonaCard';
 import { TweakDialog } from './TweakDialog';
 
 const CHAT_PREFIX = 'sg_chat_';
+const KNOWLEDGE_PREFIX = 'sg_knowledge_';
 
 function loadMessages(charId: string): ChatMessage[] {
   try {
@@ -46,6 +48,9 @@ export function ChatPanel() {
   const streamingRef = useRef(false);
   const promptRef = useRef(char?.systemPrompt || '');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [knowledgeEntries, setKnowledgeEntries] = useState<KnowledgeEntry[]>(() =>
+    getStorage<KnowledgeEntry[]>(KNOWLEDGE_PREFIX + char?.id, []),
+  );
 
   useEffect(() => { promptRef.current = char?.systemPrompt || ''; }, [char?.systemPrompt]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, streamingText]);
@@ -60,6 +65,18 @@ export function ChatPanel() {
       const firstMsg: ChatMessage = { role: 'assistant', content: char.firstMessage };
       setMessages([firstMsg]);
       saveMessages(char.id, [firstMsg]);
+    }
+    // 自动提取知识库
+    const savedKw = getStorage<KnowledgeEntry[]>(KNOWLEDGE_PREFIX + char.id, []);
+    setKnowledgeEntries(savedKw);
+    if (char.knowledge && char.knowledge.trim().length > 20 && savedKw.length === 0) {
+      const config = getConfig();
+      if (config) {
+        extractKnowledge(char.knowledge, config).then(entries => {
+          setKnowledgeEntries(entries);
+          setStorage(KNOWLEDGE_PREFIX + char.id, entries);
+        }).catch(() => {});
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [char?.id]);
@@ -93,6 +110,11 @@ export function ChatPanel() {
     }
 
     const sysMsg: ChatMessage = { role: 'system', content: promptRef.current };
+    // 注入匹配的知识条目
+    const matched = matchKnowledge(text, knowledgeEntries);
+    if (matched.length > 0) {
+      sysMsg.content = promptRef.current + '\n\n' + formatKnowledgePrompt(matched);
+    }
     setIsStreaming(true);
 
     try {

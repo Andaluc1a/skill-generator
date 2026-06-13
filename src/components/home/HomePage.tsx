@@ -11,12 +11,14 @@ import { TEMPLATES, type Character, createEmptyCharacter } from '@/types/charact
 import { useApp, generateId } from '@/store/appStore';
 import { CharacterCard } from './CharacterCard';
 import { CreateWizard } from './CreateWizard';
+import { ImportDialog } from './ImportDialog';
 import { downloadCharacterJSON, downloadSkillMD } from '@/utils/skillExport';
 
 export function HomePage() {
   const { state, dispatch } = useApp();
   const navigate = useNavigate();
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [menuChar, setMenuChar] = useState<Character | null>(null);
 
@@ -101,6 +103,9 @@ export function HomePage() {
         <Button variant="outlined" size="small" startIcon={<AddIcon />} onClick={() => setWizardOpen(true)}>
           创建新角色
         </Button>
+        <Button variant="text" size="small" onClick={() => setImportOpen(true)} sx={{ fontSize: 12, textTransform: 'none' }}>
+          导入角色
+        </Button>
       </Box>
       <Grid container spacing={2}>
         {templates.map((tpl, i) => (
@@ -112,6 +117,7 @@ export function HomePage() {
 
       {/* 创建向导弹窗 */}
       <CreateWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
+      <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
 
       {/* 角色操作菜单 */}
       <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => { setMenuAnchor(null); setMenuChar(null); }}>

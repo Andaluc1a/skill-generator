@@ -14,12 +14,13 @@ import { DEFAULT_API_CONFIG } from '@/llm';
 import { encodeBase64 } from '@/utils/storage';
 import { OpenAICompatibleProvider } from '@/llm';
 
-type Provider = 'deepseek' | 'openai' | 'qwen' | 'custom';
+type Provider = 'deepseek' | 'openai' | 'qwen' | 'grok' | 'custom';
 
 const PROVIDERS: Record<Provider, { label: string; url: string; model: string }> = {
   deepseek: { label: 'DeepSeek', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
   openai: { label: 'OpenAI', url: 'https://api.openai.com/v1', model: 'gpt-4o' },
   qwen: { label: 'Qwen (通义千问)', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+  grok: { label: 'Grok (xAI)', url: 'https://api.x.ai/v1', model: 'grok-beta' },
   custom: { label: '自定义', url: '', model: '' },
 };
 
