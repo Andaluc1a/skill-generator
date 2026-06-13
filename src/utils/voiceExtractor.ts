@@ -27,6 +27,7 @@ interface BuildInput {
   firstMsg: string;
   rawSamples: string;
   sampleSide: 'left' | 'right' | 'monologue';
+  myIdentity?: string;
 }
 
 export type ProgressCallback = (step: number, label: string) => void;
@@ -174,6 +175,9 @@ function buildPromptFromProfile(
   if (samples.length > 0) {
     parts.push(`以下是你说过的话，请严格模仿：\n"""\n${samples.join('\n')}\n"""`);
   }
+  if (input.myIdentity) {
+    parts.push(`【与你聊天的人】${input.myIdentity}。当ta问"我是谁"或类似身份问题时，直接引用这里的信息，不要自己编造。`);
+  }
   parts.push('你就是这个角色。用角色的语气回答。不要在回复外加引号或"角色名："前缀。');
   return parts.join('\n\n');
 }
@@ -189,6 +193,7 @@ function buildOfflinePrompt(input: BuildInput): string {
   if (input.avoid.trim()) parts.push(`不能说或做：${input.avoid}。`);
   if (input.rawSamples.trim()) parts.push(`参考材料：\n"""\n${input.rawSamples.slice(0, 1500)}\n"""`);
   if (input.knowledge.trim()) parts.push(`专业知识：\n"""\n${input.knowledge}\n"""`);
+  if (input.myIdentity) parts.push(`【与你聊天的人】${input.myIdentity}。当ta问"我是谁"或类似身份问题时，直接引用这里的信息，不要自己编造。`);
   parts.push('用角色的语气回答。不要在回复外加引号。');
   return parts.join('\n\n');
 }

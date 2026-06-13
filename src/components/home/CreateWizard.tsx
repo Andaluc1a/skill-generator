@@ -39,6 +39,7 @@ export function CreateWizard({ open, onClose }: Props) {
   const [knowledge, setKnowledge] = useState('');
   const [firstMsg, setFirstMsg] = useState('');
   const [avatar, setAvatar] = useState('🤖');
+  const [myIdentity, setMyIdentity] = useState('');
 
   const [genProgress, setGenProgress] = useState({ step: 0, label: '', checked: [false, false, false] });
 
@@ -74,6 +75,7 @@ export function CreateWizard({ open, onClose }: Props) {
       firstMsg: firstMsg.trim(),
       rawSamples: samples.trim(),
       sampleSide,
+      myIdentity: myIdentity.trim(),
     }, onProgress);
 
     const char: Character = {
@@ -200,7 +202,7 @@ export function CreateWizard({ open, onClose }: Props) {
           </Box>
         )}
 
-        {/* Step 4: 开场白 + 生成 */}
+        {/* Step 4: 开场白 + 身份 + 生成 */}
         {step === 4 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Alert severity="info" sx={{ mb: 1 }}>
@@ -208,7 +210,17 @@ export function CreateWizard({ open, onClose }: Props) {
             </Alert>
             <TextField label="ta 的开场白" value={firstMsg} onChange={e => setFirstMsg(e.target.value)}
               fullWidth multiline minRows={2}
-              placeholder="桐人君，你终于来了！/ 哎呀妈呀，可算来人了！/ 查询已接收。请描述你的需求。" />
+              placeholder="桐人君，你终于来了！/ 哎呀妈呀，可算来人了！" />
+
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>你是谁？（选填）</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                告诉 AI 你在这个角色面前是谁，防止它猜你的身份。
+              </Typography>
+              <TextField label="我的身份" value={myIdentity} onChange={e => setMyIdentity(e.target.value)}
+                fullWidth size="small"
+                placeholder="我叫小明，是 ta 的学弟 / 我是 ta 的老同学 / 我们刚认识..." />
+            </Box>
 
             {loading && (
               <Box sx={{ mt: 2 }}>
